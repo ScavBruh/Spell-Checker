@@ -1,0 +1,136 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <climits>
+#include <map>
+
+// Function to calculate Levenshtein distance
+int levenshteinDistance(const std::string &s1, const std::string &s2) {
+    int m = s1.size();
+    int n = s2.size();
+    std::vector<std::vector<int>> d(m + 1, std::vector<int>(n + 1));
+
+    for (int i = 0; i <= m; i++) {
+        d[i][0] = i;
+    }
+
+    for (int j = 0; j <= n; j++) {
+        d[0][j] = j;
+    }
+
+    for (int j = 1; j <= n; j++) {
+        for (int i = 1; i <= m; i++) {
+            if (s1[i - 1] == s2[j - 1]) {
+                d[i][j] = d[i - 1][j - 1];
+            } else {
+                d[i][j] = std::min({d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + 1});
+            }
+        }
+    }
+
+    return d[m][n];
+}
+
+// Function to load the dictionary from a text file
+std::vector<std::string> loadDictionaryFromFile(const std::string& filename) {
+    std::ifstream file(filename);
+    std::vector<std::string> dictionary;
+
+    if (file.is_open()) {
+        std::string word;
+        while (file >> word) {
+            dictionary.push_back(word);
+        }
+        file.close();
+    } else {
+        std::cerr << "Unable to open the file: " << filename << ". Using default dictionary." << std::endl;
+        // Using default dictionary if the file cannot be opened
+        dictionary = {"the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog"};
+    }
+
+    std::sort(dictionary.begin(), dictionary.end());
+    return dictionary;
+}
+
+// Function to add a word to the dictionary and save it to the file
+void addWordToDictionary(const std::string& word, std::vector<std::string>& dictionary, const std::string& filename) {
+    dictionary.push_back(word);
+    std::sort(dictionary.begin(), dictionary.end());
+
+    std::ofstream file(filename, std::ios_base::app);
+    if (file.is_open()) {
+        file << word << "\n";
+        file.close();
+    } else {
+        std::cerr << "Unable to open the file: " << filename << ". Word not saved." << std::endl;
+    }
+}
+
+// Function to check if a word is in the dictionary
+bool isWordInDictionary(const std::string& word, const std::vector<std::string>& dictionary) {
+    return std::binary_search(dictionary.begin(), dictionary.end(), word);
+}
+
+// Function to perform spell check on user input
+void spellCheck(std::vector<std::string>& dictionary, const std::string& filename) {
+    std::string input;
+    std::cout << "Enter a word to check its spelling or add a new word (type 'quit' to exit): ";
+
+    while (std::cin >> input) {
+        if (input == "quit") {
+            break;
+        }
+
+        if (isWordInDictionary(input, dictionary)) {
+            std::cout << "The word is spelled correctly." << std::endl;
+        } else {
+            int min_distance = INT_MAX;
+            std::string closest_word;
+            std::map<int, std::vector<std::string>> suggestions;
+
+            for (const auto& word : dictionary) {
+                int distance = levenshteinDistance(input, word);
+                suggestions[distance].push_back(word);
+
+                if (distance < min_distance) {
+                    min_distance = distance;
+                }
+            }
+
+            // Choose the suggestion with the shortest distance and highest frequency
+            closest_word = suggestions[min_distance].front();
+
+            if(min_distance <= input.size()/2){
+                std::cout << "Did you mean: " << closest_word << "?" << std::endl;
+            } else{
+                addWordToDictionary(input, dictionary, filename);
+                std::cout << "Word not found in the dictionary. Adding it now." << std::endl;
+            }
+        }
+
+        std::cout << "Enter a word to check its spelling or add a new word (type 'quit' to exit): ";
+    }
+}
+
+int main() {
+    // Change this to your actual path where you want your updated `dict.txt` file to be stored.
+    // Make sure you have write permissions for this directory.
+    // The path can be either absolute or relative depending on your setup.
+
+    // For example:
+
+    //std::string filename = "/path/to/your/dictionary.txt";
+    //std::string filename = "D:\\#PROJECT\\dict.txt";
+
+    std::vector<std::string> dictionary = loadDictionaryFromFile("D:\\#PROJECT\\dict.txt");
+
+    if (!dictionary.empty()) {
+        spellCheck(dictionary, "D:\\#PROJECT\\dict.txt");
+    } else {
+        std::cerr << "Dictionary is empty. Program exiting." << std::endl;
+    }
+
+    return 0;
+}
